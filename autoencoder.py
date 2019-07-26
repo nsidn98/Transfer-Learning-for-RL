@@ -13,11 +13,12 @@ from torch.autograd import Variable
 from tensorboardX import SummaryWriter
 
 from config import args
+from dummyStates import flippedStates,shapeStates
 
 class Autoencoder(nn.Module):
     def __init__(self,input_shape,latent_shape):
         '''
-        input_shape: the state representation shape in the original environments 
+        input_shape: the state representation shape in the original environments
         latent_shape: the state shape we want to train the RL agent on
         Will return decode(encode(input)) and latent representation
         '''
@@ -32,12 +33,12 @@ class Autoencoder(nn.Module):
 
 
 if __name__ == "__main__":
-
     # args stuff
     if not os.path.exists('./Weights'):
         os.makedirs('./Weights')
     LEARNING_RATE = args.lr
-    INPUT_SHAPE = args.input_shape  
+    INPUT_SHAPE_1 = args.input_shape_1
+    INPUT_SHAPE_2 = args.input_shape_2
     LATENT_SHAPE = args.latent_shape
     NUM_EPOCHS = args.num_epochs
     BATCH_SIZE = args.batch_size
@@ -48,23 +49,28 @@ if __name__ == "__main__":
             writer = SummaryWriter(log_dir='runs/{}'.format(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")))
 
     # make states
-    identity = np.identity(INPUT_SHAPE, dtype = np.float32)
-    original_states = []
-    flipped_states = []
-    for i in range(INPUT_SHAPE):
-        original_states.append(identity[i])
-        flipped_states.append(identity[-(i+1)])
+    if args.env == 'flipped':
+        assert INPUT_SHAPE_1 == INPUT_SHAPE_2
+        env = flippedStates(args.input_shape_1)
+        original_states, new_states = env.getStates()
 
-    original_states = np.array(original_states)
-    flipped_states  = np.array(flipped_states)
+    if args.env == 'shape':
+        assert INPUT_SHAPE_1 + 2 == INPUT_SHAPE_2
+        env = shapeStates(args.input_shape_1)
+        original_states, new_states = env.getStates()
+        # print(original_states.shape,new_states.shape)
+
+
+    # original_states = np.array(original_states)
+    # new_states  = np.array(new_states)
 
     # CUDA compatability
     use_cuda = torch.cuda.is_available()
     device   = torch.device("cuda" if use_cuda else "cpu")
 
     # instantiate autoencoders
-    autoencoder_1 = Autoencoder(INPUT_SHAPE,LATENT_SHAPE).to(device)
-    autoencoder_2 = Autoencoder(INPUT_SHAPE,LATENT_SHAPE).to(device)
+    autoencoder_1 = Autoencoder(INPUT_SHAPE_1,LATENT_SHAPE).to(device)
+    autoencoder_2 = Autoencoder(INPUT_SHAPE_2,LATENT_SHAPE).to(device)
     criterion = nn.MSELoss()
     optimizer_1 = torch.optim.Adam(autoencoder_1.parameters(), lr=LEARNING_RATE, weight_decay=1e-5)
     optimizer_2 = torch.optim.Adam(autoencoder_2.parameters(), lr=LEARNING_RATE, weight_decay=1e-5)
@@ -73,24 +79,24 @@ if __name__ == "__main__":
     print('#'*50)
     losses = []
     for epoch in tqdm(range(NUM_EPOCHS)):
-        idx = np.random.randint(INPUT_SHAPE, size=BATCH_SIZE)
+        idx = np.random.randint(INPUT_SHAPE_1, size=BATCH_SIZE)
         batch_original_input = original_states[idx,:]
-        batch_flipped_input  = flipped_states[idx,:]
+        batch_new_input  = new_states[idx,:]
 
         if args.noise:
-            noise = np.random.normal(args.noise_mean,args.noise_std,INPUT_SHAPE)
+            noise = np.random.normal(args.noise_mean,args.noise_std,INPUT_SHAPE_1)
             batch_original_input += noise
-            batch_flipped_input  += noise
+            batch_new_input  += noise
 
         
         orig_state = torch.FloatTensor(batch_original_input).to(device)
-        flip_state = torch.FloatTensor(batch_flipped_input).to(device)
+        new_state  = torch.FloatTensor(batch_new_input).to(device)
 
         s1,z1 = autoencoder_1(orig_state)
-        s2,z2 = autoencoder_2(flip_state)
+        s2,z2 = autoencoder_2(new_state)
         
         reconstruction_loss_1 = criterion(orig_state,s1)
-        reconstruction_loss_2 = criterion(flip_state.float(),s2)
+        reconstruction_loss_2 = criterion(new_state.float(),s2)
         latent_loss = criterion(z1,z2)
 
         loss = latent_loss + reconstruction_loss_1 + reconstruction_loss_2
@@ -119,17 +125,20 @@ if __name__ == "__main__":
                                 'model_state_dict': autoencoder_1.state_dict(),
                                 'optimizer_state_dict': optimizer_1.state_dict(),
                                 'loss': loss,
-                                }, 'Weights/autoencoder_1.pt')
+                                }, args.weight_paths[0])
                     torch.save({
                                 'episode': epoch,
                                 'model_state_dict': autoencoder_2.state_dict(),
                                 'optimizer_state_dict': optimizer_2.state_dict(),
                                 'loss': loss,
-                                }, 'Weights/autoencoder_2.pt')
+                                }, args.weight_paths[1])
     # print('LOSS:',losses)
-    # plt.plot(losses)
-    # plt.grid()
-    # plt.show()
+    plt.plot(losses)
+    plt.grid()
+    plt.title('Total Loss')
+    plt.xlabel('epochs')
+    plt.ylabel('Loss')
+    plt.show()
                     
         
 
