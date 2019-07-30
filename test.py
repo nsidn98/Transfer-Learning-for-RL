@@ -45,8 +45,8 @@ if args.env == 'flipped':
     print(z1,z2)
 
 if args.env == 'shape':
-    env = shapeStates(args.input_shape_1)
-    original_states, new_states = env.getStates()
+    env = shapeStates(args.input_shape_1,args.input_shape_2)
+    original_states, new_states = env.getStates(flip=args.flip,random=args.random)
     
     k = np.random.randint(0,args.input_shape_1,1)
     state = original_states[k]
@@ -58,9 +58,12 @@ if args.env == 'shape':
     s1,z1 = autoencoder1(state)
     s2,z2 = autoencoder2(new_state)
 
-    print(s1,state)
+    print(s1)
+    print(state)
     print('\n\n')
-    print(s2,new_state)
+    print(s2)
+    print(new_state)
     print('\n\n')
-    print(z1,z2)
+    print(z1)
+    print(z2)
 

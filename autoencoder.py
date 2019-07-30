@@ -15,14 +15,14 @@ from tensorboardX import SummaryWriter
 from config import args
 from dummyStates import flippedStates,shapeStates
 
-class Autoencoder(nn.Module):
+class AutoencoderLinear(nn.Module):
     def __init__(self,input_shape,latent_shape):
         '''
         input_shape: the state representation shape in the original environments
         latent_shape: the state shape we want to train the RL agent on
         Will return decode(encode(input)) and latent representation
         '''
-        super(Autoencoder, self).__init__()
+        super(AutoencoderLinear, self).__init__()
         self.encoder = nn.Linear(input_shape,latent_shape)
         self.decoder = nn.Linear(latent_shape,input_shape)
 
@@ -31,6 +31,19 @@ class Autoencoder(nn.Module):
         out = self.decoder(z)
         return out, z
 
+class AutoencoderConv(nn.Module):
+    def __init__(self,input_shape,latent_shape,num_layers):
+        super(AutoencoderConv,self).__init__()
+        pass
+    
+    def forward(self,x):
+        pass
+
+    def convOutputShape(h,w,kernel_size,stride,padding):
+        h_out = (h-kernel_size+padding)/stride + 1
+        w_out = (w-kernel_size+padding)/stride + 1
+        return h_out,w_out
+        
 
 if __name__ == "__main__":
     # args stuff
@@ -55,28 +68,28 @@ if __name__ == "__main__":
         original_states, new_states = env.getStates()
 
     if args.env == 'shape':
-        assert INPUT_SHAPE_1 + 2 == INPUT_SHAPE_2
-        env = shapeStates(args.input_shape_1)
-        original_states, new_states = env.getStates()
-        # print(original_states.shape,new_states.shape)
+        env = shapeStates(args.input_shape_1,args.input_shape_2)
+        original_states, new_states = env.getStates(flip=args.flip,random=args.random)
 
-
-    # original_states = np.array(original_states)
-    # new_states  = np.array(new_states)
 
     # CUDA compatability
     use_cuda = torch.cuda.is_available()
     device   = torch.device("cuda" if use_cuda else "cpu")
 
     # instantiate autoencoders
-    autoencoder_1 = Autoencoder(INPUT_SHAPE_1,LATENT_SHAPE).to(device)
-    autoencoder_2 = Autoencoder(INPUT_SHAPE_2,LATENT_SHAPE).to(device)
+    if args.autoencoder_type == 'linear':
+        autoencoder_1 = AutoencoderLinear(INPUT_SHAPE_1,LATENT_SHAPE).to(device)
+        autoencoder_2 = AutoencoderLinear(INPUT_SHAPE_2,LATENT_SHAPE).to(device)
+    elif args.autoencoder_type == 'conv':
+        autoencoder_1 = AutoencoderConv(INPUT_SHAPE_1,LATENT_SHAPE).to(device)
+        autoencoder_2 = AutoencoderConv(INPUT_SHAPE_2,LATENT_SHAPE).to(device)
     criterion = nn.MSELoss()
     optimizer_1 = torch.optim.Adam(autoencoder_1.parameters(), lr=LEARNING_RATE, weight_decay=1e-5)
     optimizer_2 = torch.optim.Adam(autoencoder_2.parameters(), lr=LEARNING_RATE, weight_decay=1e-5)
 
     print('STARTING TRAINING...')
     print('#'*50)
+    print('\n\n\n')
     losses = []
     for epoch in tqdm(range(NUM_EPOCHS)):
         idx = np.random.randint(INPUT_SHAPE_1, size=BATCH_SIZE)
@@ -99,7 +112,8 @@ if __name__ == "__main__":
         reconstruction_loss_2 = criterion(new_state.float(),s2)
         latent_loss = criterion(z1,z2)
 
-        loss = latent_loss + reconstruction_loss_1 + reconstruction_loss_2
+        # add losses
+        loss = args.alpha_latent*latent_loss + args.alpha_recon1*reconstruction_loss_1 + args.alpha_recon2*reconstruction_loss_2
         losses.append(loss.detach().cpu().numpy())
         if args.tensorboard:
             writer.add_scalar('Autoencoder_1_Loss',reconstruction_loss_1.item(),epoch)
@@ -140,5 +154,3 @@ if __name__ == "__main__":
     plt.ylabel('Loss')
     plt.show()
                     
-        
-
