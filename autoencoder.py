@@ -31,18 +31,35 @@ class AutoencoderLinear(nn.Module):
         out = self.decoder(z)
         return out, z
 
-class AutoencoderConv(nn.Module):
-    def __init__(self,input_shape,latent_shape,num_layers):
-        super(AutoencoderConv,self).__init__()
-        pass
-    
-    def forward(self,x):
-        pass
 
-    def convOutputShape(h,w,kernel_size,stride,padding):
-        h_out = (h-kernel_size+padding)/stride + 1
-        w_out = (w-kernel_size+padding)/stride + 1
-        return h_out,w_out
+class AutoencoderConv(nn.Module):
+    def __init__(self,input_shape,latent_shape):
+        super(AutoencoderConv, self).__init__()
+        ## encoder layers ##
+        self.conv1 = nn.Conv2d(3, 16, 3, padding=1)  
+        self.conv2 = nn.Conv2d(16, 4, 3, padding=1)
+        # pooling layer to reduce x-y dims by two; kernel and stride of 2
+        self.pool = nn.MaxPool2d(2, 2)
+        
+        ## decoder layers ##
+        ## a kernel of 2 and a stride of 2 will increase the spatial dims by 2
+        self.t_conv1 = nn.ConvTranspose2d(4, 16, 2, stride=2)
+        self.t_conv2 = nn.ConvTranspose2d(16, 3, 2, stride=2)
+
+
+    def forward(self, x):
+        ## encode ##
+        x = F.relu(self.conv1(x))
+        x = self.pool(x)
+        x = F.relu(self.conv2(x))
+        x = self.pool(x)  
+        
+        ## decode ##
+        x = F.relu(self.t_conv1(x))
+        x = F.sigmoid(self.t_conv2(x))
+                
+        return x
+
         
 
 if __name__ == "__main__":
