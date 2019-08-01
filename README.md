@@ -1,5 +1,8 @@
 # Transfer-Matching-Networks
 
+#### Go to this [link](https://github.com/nsidn98/Transfer-Matching-Networks/blob/master/src/algos/dqn/README.md) for usage of zero-shot learning of cartpole-env
+
+
 ## Flipped States:
 States is flipped in new environment:
 * To run the basic experiment with flipped states:
