@@ -14,33 +14,17 @@ parser.add_argument('--gamma',
                     type=float,
                     default=0.99,
                     help="Discount rate for Q_target")
-parser.add_argument("--env",
-                    type=str,
-                    default="CartPole-v0",
+parser.add_argument("--env",type=str,default="CartPole-v0",
                     help="Gym environment name")
-# parser.add_argument("--n_episode",
-#                     type=int,
-#                     default=1000,
-#                     help="Number of epsidoes to run")
-parser.add_argument("--batch-size",
-                    type=int,
-                    default=64,
+parser.add_argument("--batch-size",type=int,default=64,
                     help="Mini-batch size")
-parser.add_argument("--hidden-dim",
-                    type=int,
-                    default=12,
+parser.add_argument("--hidden-dim",type=int,default=12,
                     help="Hidden dimension")
-parser.add_argument("--capacity",
-                    type=int,
-                    default=50000,
+parser.add_argument("--capacity",type=int,default=50000,
                     help="Replay memory capacity")
-parser.add_argument("--max-episode",
-                    type=int,
-                    default=50,
+parser.add_argument("--max-episode",type=int,default=50,
                     help="e-Greedy target episode (eps will be the lowest at this episode)")
-parser.add_argument("--min-eps",
-                    type=float,
-                    default=0.01,
+parser.add_argument("--min-eps",type=float,default=0.01,
                     help="Min epsilon")
 
 parser.add_argument('--n_episode', type=int, default=1000,
@@ -55,9 +39,13 @@ parser.add_argument('--tensorboard', type=int, default=1,
                     help='Whether we want tensorboardX logging')
 parser.add_argument('--batch_size', type=int, default=5, 
                     help='batch size to sample')
-parser.add_argument('--latent_shape', type=int, default=80, 
+parser.add_argument('--latent_shape', type=int, default=8, 
                     help='batch size to sample')
-parser.add_argument('--weight_paths',type=str2list,default='./Weights/autoencoder_1_shape.pt,./Weights/autoencoder_2_shape.pt')
+
+# save weight for autoencoder
+parser.add_argument('--weight_paths',type=str2list,default='./Weights/autoencoder_1.pt,./Weights/autoencoder_2.pt')
+# sace weights for dqn 
+parser.add_argument('--weight_pathDQN',type=str,default='./Weights/DQN.pt')
 
 # autoencoder
 parser.add_argument('--autoencoder_type',type=str,default='linear',
@@ -86,6 +74,11 @@ parser.add_argument('--flip',type=int,default=0,
 parser.add_argument('--alpha_latent',type=float,default=1)
 parser.add_argument('--alpha_recon1',type=float,default=1)
 parser.add_argument('--alpha_recon2',type=float,default=1)
+
+parser.add_argument('--test',type=int,default=0)
+parser.add_argument('--state_type',type=str,default='original')
+
+
 
 
 FLAGS = parser.parse_args()

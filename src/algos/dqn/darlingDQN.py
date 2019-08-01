@@ -63,7 +63,6 @@ class DQN(nn.Module):
 
 Transition = namedtuple("Transition",
                         field_names=["state", "action", "reward", "next_state", "done"])
-States_Buffer = namedtuple("States",field_names=["orig_state","new_state"])
 
 
 class ReplayMemory(object):
@@ -112,51 +111,10 @@ class ReplayMemory(object):
         return len(self.memory)
 
 
-class stateBuffer(object):
-    '''
-    Buffer for storing states for autoencoders
-    '''
-    def __init__(self, capacity: int) -> None:
-        """Replay memory class
-        Args:
-            capacity (int): Max size of this memory
-        """
-        self.capacity = capacity
-        self.cursor = 0
-        self.memory = []
-
-    def push(self,
-             orig_state: np.ndarray,
-             new_state : np.ndarray,
-             ) -> None:
-        """Creates `Transition` and insert
-        Args:
-            orig_state (np.ndarray): 1-D tensor of shape (input_dim,)
-            next_state (np.ndarray): 1-D tensor of shape (input_dim,)
-        """
-        if len(self) < self.capacity:
-            self.memory.append(None)
-
-        self.memory[self.cursor] = States_Buffer(orig_state, new_state)
-        self.cursor = (self.cursor + 1) % self.capacity
-
-    def pop(self, batch_size: int) -> List[States_Buffer]:
-        """Returns a minibatch of `Transition` randomly
-        Args:
-            batch_size (int): Size of mini-bach
-        Returns:
-            List[Transition]: Minibatch of `Transition`
-        """
-        return random.sample(self.memory, batch_size)
-
-    def __len__(self) -> int:
-        """Returns the length """
-        return len(self.memory)
-
 
 class Agent(object):
 
-    def __init__(self, input_dim: int, output_dim: int, hidden_dim: int) -> None:
+    def __init__(self, input_dim: int, output_dim: int, hidden_dim: int, test: int, load_path: str) -> None:
         """Agent class that choose action and train
         Args:
             input_dim (int): input dimension
@@ -166,9 +124,15 @@ class Agent(object):
         self.dqn = DQN(input_dim, output_dim, hidden_dim)
         self.input_dim = input_dim
         self.output_dim = output_dim
-
-        self.loss_fn = nn.MSELoss()
-        self.optim = torch.optim.Adam(self.dqn.parameters())
+        if os.path.exists(load_path):
+            print('LOADING DQN MODEL')
+            checkpoint = torch.load(load_path)
+            self.dqn.load_state_dict(checkpoint['model_state_dict'])
+        if not test:
+            self.loss_fn = nn.MSELoss()
+            self.optim = torch.optim.Adam(self.dqn.parameters())
+        if test:
+            self.dqn.eval()
 
     def _to_variable(self, x: np.ndarray) -> torch.Tensor:
         """torch.Variable syntax helper
@@ -223,60 +187,31 @@ class Agent(object):
         self.optim.step()
         return loss
 
-class Darling(object):
-    # DisentAngled Representation LearnING
-    # Parody of DARLA :P
-    def __init__(self,input_shape_1,input_shape_2,latent_shape,tensorboard=0):
-        self.input_shape_1 = input_shape_1
-        self.input_shape_2 = input_shape_2
-        self.latent_shape  = latent_shape
-        self.autoencoder1  = AutoencoderLinear(input_shape_1,latent_shape)
-        self.autoencoder2  = AutoencoderLinear(input_shape_2,latent_shape)
-        self.criterion     = nn.MSELoss()
-        self.optimizer1 = torch.optim.Adam(self.autoencoder1.parameters(), lr=1e-3, weight_decay=1e-5)
-        self.optimizer2 = torch.optim.Adam(self.autoencoder2.parameters(), lr=1e-3, weight_decay=1e-5)
-        self.losses = []
-        self.tensorboard = tensorboard
-        self.loss = 0
+    def saveModel(self,save_path):
+        print('SAVING DQN MODEL')
+        torch.save({
+                'model_state_dict': self.dqn.state_dict(),
+                }, save_path)
 
-    def train(self,minibatch: List[Transition]):
-        orig_states = np.vstack([x.orig_state for x in minibatch])
-        new_states  = np.vstack([x.new_state for x in minibatch])
+class LatentTransform(object):
+    # convert the original state to latent representation
+    def __init__(self,input_shape,latent_shape,autoencoder_type='original'):
+        self.autoencoder  = AutoencoderLinear(input_shape,latent_shape)
+        if autoencoder_type == 'original':
+            checkpoint = torch.load('Weights/autoencoder_1.pt')
+        if autoencoder_type == 'target':
+            checkpoint = torch.load('Weights/autoencoder_2.pt')
 
-        orig_states = torch.FloatTensor(orig_states)
-        new_states = torch.FloatTensor(new_states)
-        
-        s1,z1 = self.autoencoder1(orig_states)
-        s2,z2 = self.autoencoder2(new_states)
-        
-        reconstruction_loss1 = self.criterion(orig_states,s1)
-        reconstruction_loss2 = self.criterion(new_states,s2)
-        latent_loss = self.criterion(z1,z2)
-
-        loss = latent_loss + reconstruction_loss1 + reconstruction_loss2
-        self.losses.append(loss.detach().numpy())
-        self.loss = np.copy(loss.detach().numpy())
-
-        self.optimizer1.zero_grad()
-        loss.backward(retain_graph=True)
-        self.optimizer1.step()
-
-        self.optimizer2.zero_grad()
-        loss.backward()
-        self.optimizer2.step()
+        self.autoencoder.load_state_dict(checkpoint['model_state_dict'])
+        self.autoencoder.eval()
     
-    def save(self,args):
-        if not os.path.exists('./Weights'):
-            os.makedirs('./Weights')
-        torch.save({
-                    'model_state_dict': self.autoencoder1.state_dict(),
-                    'optimizer_state_dict': self.optimizer1.state_dict(),
-                    }, args.weight_paths[0])
-        torch.save({
-                    'model_state_dict': self.autoencoder2.state_dict(),
-                    'optimizer_state_dict': self.optimizer2.state_dict(),
-                    }, args.weight_paths[1])
-
+    def getLatent(self,state):
+        state_c = np.copy(state) # so that no changes are made in the original state
+        state_t = torch.FloatTensor(state_c)
+        s,z = self.autoencoder(state_t)
+        s = s.detach().numpy()
+        z = z.detach().numpy()
+        return s,z
 
 def train_helper(agent: Agent, minibatch: List[Transition], gamma: float) -> float:
     """Prepare minibatch and train them
@@ -304,9 +239,8 @@ def train_helper(agent: Agent, minibatch: List[Transition], gamma: float) -> flo
 
 def play_episode(env: gym.Env,
                  agent: Agent,
-                 autoencoder_agent: Darling,
+                 transformer: LatentTransform,
                  replay_memory: ReplayMemory,
-                 state_memory:  stateBuffer,
                  eps: float,
                  batch_size: int) -> int:
     """Play an epsiode and train
@@ -324,29 +258,66 @@ def play_episode(env: gym.Env,
     total_reward = 0
 
     while not done:
+        # _l subscript for latent representation
+        s_l,z_l = transformer.getLatent(s)
+        a = agent.get_action(z_l, eps)
+        s2, r, done, _ = env.step(a)
 
-        a = agent.get_action(s, eps)
-        s2, r, done, info = env.step(a)
-
+        s2_l,z2_l = transformer.getLatent(s2)
         total_reward += r
 
         if done:
             r = -1
-        replay_memory.push(s, a, r, s2, done)
-        state_memory.push(s,np.flip(s))
+        # replay_memory.push(s, a, r, s2, done)
+        replay_memory.push(z_l, a, r, z2_l, done)
+
 
         if len(replay_memory) > batch_size:
 
             minibatch = replay_memory.pop(batch_size)
             train_helper(agent, minibatch, FLAGS.gamma)
 
-            minibatch_autoencoder = state_memory.pop(batch_size)
-            autoencoder_agent.train(minibatch_autoencoder)
 
         s = s2
 
     return total_reward
 
+def test_episode(env: gym.Env,
+                 agent: Agent,
+                 transformer: LatentTransform,
+                 state_type: str) -> int:
+    """Play an epsiode and train
+    Args:
+        env (gym.Env): gym environment (CartPole-v0)
+        agent (Agent): agent will train and get action
+        replay_memory (ReplayMemory): trajectory is saved here
+        eps (float): 𝜺-greedy for exploration
+        state_type(str): either 'original' or 'target'(for flipped)
+    Returns:
+        int: reward earned in this episode
+    """
+    s = env.reset()
+    done = False
+    total_reward = 0
+
+    while not done:
+        # _l subscript for latent representation
+        if state_type=='target':
+            print('FLIPPING')
+            s = np.flip(s)
+        s_l,z_l = transformer.getLatent(s)
+        a = agent.get_action(z_l, 0)
+        s2, r, done, _ = env.step(a)
+
+        s2_l,z2_l = transformer.getLatent(s2)
+        total_reward += r
+
+        if done:
+            r = -1
+
+        s = s2
+
+    return total_reward
 
 def get_env_dim(env: gym.Env) -> Tuple[int, int]:
     """Returns input_dim & output_dim
@@ -385,33 +356,59 @@ def epsilon_annealing(epsiode: int, max_episode: int, min_eps: float) -> float:
 def main():
     """Main
     """
+    rewards_arr = []
     try:
         env = gym.make(FLAGS.env)
         # env = gym.wrappers.Monitor(env, directory="monitors", force=True)
         rewards = deque(maxlen=100)
-        input_dim, output_dim = get_env_dim(env)
-        agent = Agent(input_dim, output_dim, FLAGS.hidden_dim)
-        replay_memory = ReplayMemory(FLAGS.capacity)
-        state_memory = stateBuffer(FLAGS.capacity)
-        autoencoder_agent = Darling(input_shape_1=input_dim,input_shape_2=input_dim,latent_shape=int(2*input_dim))
+        input_dim_orig, output_dim = get_env_dim(env)
+        input_dim = FLAGS.latent_shape # 8
+        agent = Agent(input_dim, output_dim, FLAGS.hidden_dim,FLAGS.test,FLAGS.weight_pathDQN)
+        transformer = LatentTransform(input_dim_orig,input_dim,FLAGS.state_type)
 
-        for i in range(FLAGS.n_episode):
-            eps = epsilon_annealing(i, FLAGS.max_episode, FLAGS.min_eps)
-            r = play_episode(env, agent,autoencoder_agent, replay_memory,state_memory, eps, FLAGS.batch_size)
-            autoencoder_loss = autoencoder_agent.loss
-            print("[Episode: {:5}] Reward: {:5} 𝜺-greedy: {:5.2f} Autoencoder Loss: {:5}".format(i + 1, r, eps,autoencoder_loss))
+        if FLAGS.test:
+            rewards_arr = []
+            for i in range(FLAGS.n_episode):
+                r = test_episode(env,agent,transformer,FLAGS.state_type)
+                rewards_arr.append(r)
+                print("[Episode: {:5}] Reward: {:5}".format(i + 1, r))
+            plt.plot(rewards_arr)
+            plt.grid()
+            plt.xlabel('Episodes')
+            plt.ylabel('Rewards')
+            plt.title('Rewards for flipped environment.\n Testing with DQN')
+            plt.savefig('Outputs/DQN_flip_test.png')
+            plt.show()
+            np.save('Outputs/dqn_flip_test.npy',np.array(rewards_arr))
 
-            rewards.append(r)
+        if not FLAGS.test:
+            replay_memory = ReplayMemory(FLAGS.capacity)
+            for i in range(FLAGS.n_episode):
+                eps = epsilon_annealing(i, FLAGS.max_episode, FLAGS.min_eps)
+                r = play_episode(env, agent,transformer, replay_memory, eps, FLAGS.batch_size)
+                print("[Episode: {:5}] Reward: {:5} 𝜺-greedy: {:5.2f}".format(i + 1, r, eps))
 
-            if len(rewards) == rewards.maxlen:
+                rewards.append(r)
+                rewards_arr.append(r)
 
-                if np.mean(rewards) >= 200:
-                    print("Game cleared in {} games with {}".format(i + 1, np.mean(rewards)))
-                    break
-        autoencoder_agent.save(FLAGS)
-        # plt.plot(autoencoder_agent.losses)
-        # plt.grid()
-        # plt.show()
+                if len(rewards) == rewards.maxlen:
+
+                    if np.mean(rewards) >= 200:
+                        print("Game cleared in {} games with {}".format(i + 1, np.mean(rewards)))
+                        break
+
+            # save stuff
+            agent.saveModel(FLAGS.weight_pathDQN)
+            if not os.path.exists('./Outputs'):
+                os.makedirs('./Outputs')
+            plt.plot(rewards_arr)
+            plt.grid()
+            plt.xlabel('Episodes')
+            plt.ylabel('Rewards')
+            plt.title('Rewards for original environment.\n Training with DQN')
+            plt.savefig('Outputs/DQN_orig.png')
+            plt.show()
+            np.save('Outputs/dqn_orig.npy',np.array(rewards_arr))
     finally:
         env.close()
 
