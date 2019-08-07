@@ -126,6 +126,8 @@ def train():
     data_root = homedir + "/data/VOCdevkit/VOC2007"
     list_file_path = os.path.join(data_root,"ImageSets","Main","train.txt")
     img_dir = os.path.join(data_root,"JPEGImages")
+    if not os.path.exists('./Weights'):
+        os.makedirs('./Weights')
 
     dataset = PascalVOCDataset(list_file_path,img_dir,args.orig_shape,args.target_shape)
     trainloader = DataLoader(dataset,batch_size=args.batch_size,shuffle=True)
