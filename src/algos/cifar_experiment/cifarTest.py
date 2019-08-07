@@ -1,5 +1,7 @@
 import os
+import datetime
 import numpy as np
+import shutil
 import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
@@ -7,6 +9,8 @@ import torch.nn.functional as F
 import torchvision
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
+from tensorboardX import SummaryWriter
+
 
 from config import args
 from dataset import PascalVOCDataset
@@ -126,8 +130,21 @@ def train():
     dataset = PascalVOCDataset(list_file_path,img_dir,args.orig_shape,args.target_shape)
     trainloader = DataLoader(dataset,batch_size=args.batch_size,shuffle=True)
 
-    AE1 = AutoEncoder(args.orig_shape,args.latent_shape)
-    AE2 = AutoEncoder(args.target_shape,args.latent_shape)
+    if args.rm_runs:
+        shutil.rmtree('runs')
+    if args.tensorboard:
+        print('Init tensorboardX')
+        writer = SummaryWriter(log_dir='runs/{}'.format(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")))
+
+    # CUDA compatability
+    use_cuda = torch.cuda.is_available()
+    device   = torch.device("cuda" if use_cuda else "cpu")
+    print('#'*50)
+    print(device)
+
+
+    AE1 = AutoEncoder(args.orig_shape,args.latent_shape).to(device)
+    AE2 = AutoEncoder(args.target_shape,args.latent_shape).to(device)
     criterion = nn.MSELoss()
     optimizer_1 = torch.optim.Adam(AE1.parameters(), lr=args.lr, weight_decay=1e-5)
     optimizer_2 = torch.optim.Adam(AE2.parameters(), lr=args.lr, weight_decay=1e-5)
@@ -135,19 +152,19 @@ def train():
     i = 0
     for epoch in range(args.num_epochs):
         for batch in trainloader:
-            orig_env_image = torch.autograd.Variable(batch['orig_env_image'])
-            target_env_image = torch.autograd.Variable(batch['target_env_image'])
+            orig_env_image = torch.autograd.Variable(batch['orig_env_image']).to(device)
+            target_env_image = torch.autograd.Variable(batch['target_env_image']).to(device)
 
             z1,s1 = AE1(orig_env_image)
             z2,s2 = AE2(target_env_image)
 
             reconstruction_loss1 = criterion(orig_env_image,s1)/(args.orig_shape**2)
             reconstruction_loss2 = criterion(target_env_image,s2)/(args.target_shape**2)
-            latent_loss = criterion(z1,z2)
+            latent_loss = criterion(z1,z2)*100
             loss = reconstruction_loss1 + reconstruction_loss2 + latent_loss
             if args.tensorboard:
-                writer.add_scalar('Autoencoder_1_Loss',reconstruction_loss_1.item(),i)
-                writer.add_scalar('Autoencoder_2_Loss',reconstruction_loss_2.item(),i)
+                writer.add_scalar('Autoencoder_1_Loss',reconstruction_loss1.item(),i)
+                writer.add_scalar('Autoencoder_2_Loss',reconstruction_loss2.item(),i)
                 writer.add_scalar('Latent_Loss',latent_loss.item(),i)
                 writer.add_scalar('Total_Loss',loss.item(),i)
 
@@ -158,6 +175,7 @@ def train():
             optimizer_2.zero_grad()
             loss.backward()
             optimizer_2.step()
+            i+=1
 
             print(loss.item(),reconstruction_loss1.item(),reconstruction_loss2.item(),latent_loss.item())
         torch.save({
@@ -166,7 +184,7 @@ def train():
                     }, args.weight_paths[0])
         torch.save({
                     'model_state_dict': AE2.state_dict(),
-                    'optimizer_state_dict': optimizer_2.state_dict(),
+                    'optimizer_state_dict': optimizer_2.state_dict(), 
                     }, args.weight_paths[1])
             
             

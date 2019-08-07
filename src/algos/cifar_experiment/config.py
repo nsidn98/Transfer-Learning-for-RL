@@ -26,6 +26,8 @@ parser.add_argument('--latent_shape', type=int, default=100,
                     help='number of episodes to train the agent')
 parser.add_argument('--tensorboard', type=int, default=0,
                     help='number of episodes to train the agent')
+parser.add_argument('--rm_runs', type=int, default=0,
+                    help='number of episodes to train the agent')
 
 
 
