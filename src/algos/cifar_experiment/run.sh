@@ -17,5 +17,5 @@ cd /storage/home/sidnayak/Transfer-Matching-Networks/src/algos/cifar_experiment/
 
 # python -u Agent_detect.py --load_model=1 --epoch=10 &> out
 # python -u ssd_random.py --epoch=20 &> outputs/out_random_newReward
-python -u cifarTest.py --tensorboard=1 --rm_runs=1 &> out.txt
+python -u cifarTest.py --tensorboard=1 --rm_runs=0 &> out.txt
 
