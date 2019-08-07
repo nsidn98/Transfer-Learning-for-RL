@@ -164,13 +164,13 @@ def train():
                 reconstruction_loss1 = criterion(orig_env_image,s1)/(args.orig_shape**2)
                 reconstruction_loss2 = criterion(target_env_image,s2)/(args.target_shape**2)
                 latent_loss = criterion(z1,z2)*100
+                loss = reconstruction_loss1 + reconstruction_loss2 + latent_loss
             else:
-                print('NO')
                 reconstruction_loss1 = criterion(orig_env_image,s1)
                 reconstruction_loss2 = criterion(target_env_image,s2)
                 latent_loss = criterion(z1,z2)
+                loss = reconstruction_loss1 + reconstruction_loss2 + latent_loss
 
-            loss = reconstruction_loss1 + reconstruction_loss2 + latent_loss
             if args.tensorboard:
                 writer.add_scalar('Autoencoder_1_Loss',reconstruction_loss1.item(),i)
                 writer.add_scalar('Autoencoder_2_Loss',reconstruction_loss2.item(),i)
@@ -198,11 +198,7 @@ def train():
                     }, args.weight_paths[1])
             
             
-            
-
-
-    
-    
+   
 
 if __name__ == "__main__":
     train()
