@@ -16,18 +16,22 @@ parser.add_argument('--lr', type=float, default=1e-3,
 parser.add_argument('--batch_size', type=int, default=20, 
                     help='batch size to sample')
 parser.add_argument('--num_epochs', type=int, default=10,
-                    help='number of episodes to train the agent')
-parser.add_argument('--save_path', type=str,default='AE_weights.pt')
+                    help='number of epoochs to train the the autoencoder')
+parser.add_argument('--save_path', type=str,default='AE_weights.pt',
+                    help='path to save the autoencoder weights')
 parser.add_argument('--orig_shape', type=int, default=64,
-                    help='number of episodes to train the agent')
+                    help='original image shape(env1)')
 parser.add_argument('--target_shape', type=int, default=32,
-                    help='number of episodes to train the agent')
+                    help='target image shape(env2)')
 parser.add_argument('--latent_shape', type=int, default=100,
-                    help='number of episodes to train the agent')
+                    help='latent representation shape')
 parser.add_argument('--tensorboard', type=int, default=0,
-                    help='number of episodes to train the agent')
+                    help='whether to log in tensorboard')
 parser.add_argument('--rm_runs', type=int, default=0,
-                    help='number of episodes to train the agent')
+                    help='whether to clean the previous logs(do it only if you feel previous logs are useless)')
+parser.add_argument('--scale_loss', type=int, default=0,
+                    help='whether to normalise each component of the loss term')
+
 
 
 
