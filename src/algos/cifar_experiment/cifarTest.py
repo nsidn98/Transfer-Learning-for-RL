@@ -165,6 +165,7 @@ def train():
                 reconstruction_loss2 = criterion(target_env_image,s2)/(args.target_shape**2)
                 latent_loss = criterion(z1,z2)*100
             else:
+                print('NO')
                 reconstruction_loss1 = criterion(orig_env_image,s1)
                 reconstruction_loss2 = criterion(target_env_image,s2)
                 latent_loss = criterion(z1,z2)
@@ -186,6 +187,7 @@ def train():
             i+=1
 
             print(loss.item(),reconstruction_loss1.item(),reconstruction_loss2.item(),latent_loss.item())
+        print('Saving Weights')
         torch.save({
                     'model_state_dict': AE1.state_dict(),
                     'optimizer_state_dict': optimizer_1.state_dict(),
