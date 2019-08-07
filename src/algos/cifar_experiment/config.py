@@ -31,6 +31,7 @@ parser.add_argument('--rm_runs', type=int, default=0,
                     help='whether to clean the previous logs(do it only if you feel previous logs are useless)')
 parser.add_argument('--scale_loss', type=int, default=0,
                     help='whether to normalise each component of the loss term')
+parser.add_argument('--weight_paths',type=str2list,default='./Weights/autoencoder_1_shape.pt,./Weights/autoencoder_2_shape.pt')
 
 
 
