@@ -221,11 +221,12 @@ def test():
     AE2 = AutoEncoder(args.target_shape,args.latent_shape)
     criterion = nn.MSELoss()
     if os.path.exists(args.weight_paths[0]):
+        print('Loading weights')
         checkpoint1 = torch.load(args.weight_paths[0],map_location='cpu')
         checkpoint2 = torch.load(args.weight_paths[1],map_location='cpu')
 
-        AE1.load(checkpoint1['model_state_dict'])
-        AE2.load(checkpoint2['model_state_dict'])
+        AE1.load_state_dict(checkpoint1['model_state_dict'])
+        AE2.load_state_dict(checkpoint2['model_state_dict'])
 
     AE1.eval()
     AE2.eval()
@@ -239,12 +240,34 @@ def test():
 
         img1 = tensor2img(orig_env_image)
         img2 = tensor2img(target_env_image)
+        s1_img = tensor2img(s1.detach())
+        s2_img = tensor2img(s2.detach())
         
+        plt.figure()
+
+        ax= plt.subplot(2,2,1)
+        im=ax.imshow(img1)
+        plt.title('64x64')
+        ax= plt.subplot(2,2,2)
+        im=ax.imshow(s1_img)
+        plt.title('reconstruct(64x64)')
+        
+        ax= plt.subplot(2,2,3)
+        im=ax.imshow(img1)
+        plt.title('32x32')
+        ax= plt.subplot(2,2,4)
+        im=ax.imshow(s2_img)
+        plt.title('reconstruct(32x32)')
+        plt.tight_layout()
+        print(z1.detach().numpy())
+        print(z2.detach().numpy())
+        print(criterion(z1,z2))
+        plt.show()
         i+=1
         if i == 1:
             break
            
 
 if __name__ == "__main__":
-    train()
-    # test()
+    # train()
+    test()
