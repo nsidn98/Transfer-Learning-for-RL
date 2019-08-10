@@ -156,7 +156,7 @@ def train():
         for batch in trainloader:
             orig_env_image = torch.autograd.Variable(batch['orig_env_image']).to(device)
             target_env_image = torch.autograd.Variable(batch['target_env_image']).to(device)
-
+            print(torch.max(orig_env_image))
             z1,s1 = AE1(orig_env_image)
             z2,s2 = AE2(target_env_image)
 
@@ -196,9 +196,55 @@ def train():
                     'model_state_dict': AE2.state_dict(),
                     'optimizer_state_dict': optimizer_2.state_dict(), 
                     }, args.weight_paths[1])
+
+def tensor2img(img):
+    img = img[0] # remove the 'batch' dimension
+    img = img.numpy()
+    img = np.transpose(img,(2,1,0))
+    return img
             
-            
-   
+def test():
+     # NOTE: Change the file paths here appropriately
+    homedir = os.path.expanduser("~")
+    data_root = homedir + "/data/VOCdevkit/VOC2007"
+    list_file_path = os.path.join(data_root,"ImageSets","Main","train.txt")
+    img_dir = os.path.join(data_root,"JPEGImages")
+    if not os.path.exists('./Weights'):
+        os.makedirs('./Weights')
+
+    dataset = PascalVOCDataset(list_file_path,img_dir,args.orig_shape,args.target_shape)
+    trainloader = DataLoader(dataset,batch_size=1,shuffle=True)
+
+
+
+    AE1 = AutoEncoder(args.orig_shape,args.latent_shape)
+    AE2 = AutoEncoder(args.target_shape,args.latent_shape)
+    criterion = nn.MSELoss()
+    if os.path.exists(args.weight_paths[0]):
+        checkpoint1 = torch.load(args.weight_paths[0],map_location='cpu')
+        checkpoint2 = torch.load(args.weight_paths[1],map_location='cpu')
+
+        AE1.load(checkpoint1['model_state_dict'])
+        AE2.load(checkpoint2['model_state_dict'])
+
+    AE1.eval()
+    AE2.eval()
+
+    i = 0
+    for batch in trainloader:
+        orig_env_image = torch.autograd.Variable(batch['orig_env_image'])
+        target_env_image = torch.autograd.Variable(batch['target_env_image'])
+        z1,s1 = AE1(orig_env_image)
+        z2,s2 = AE2(target_env_image)
+
+        img1 = tensor2img(orig_env_image)
+        img2 = tensor2img(target_env_image)
+        
+        i+=1
+        if i == 1:
+            break
+           
 
 if __name__ == "__main__":
     train()
+    # test()
