@@ -77,49 +77,6 @@ class AutoEncoder(nn.Module):
         # use w_out = (w-k_size+2*padding)/stride + 1  
         return int(self.image_dim/4-3)
 
-def main():
-    transform = transforms.Compose(
-    [transforms.ToTensor(),
-    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
-
-
-    trainset = torchvision.datasets.CIFAR10(root='~/data', train=True,
-                                            download=False, transform=transform)
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=args.batch_size,
-                                            shuffle=True, num_workers=2)
-
-
-    AE = AutoEncoder(32,100)
-    criterion = nn.MSELoss()
-    optimizer = torch.optim.Adam(AE.parameters(), lr=args.lr, weight_decay=1e-5)
-    print('Training...')
-    losses = []
-    for epoch in range(args.num_epochs):
-        running_loss = 0
-        for i, data in enumerate(trainloader,0):
-            inputs, _ = data
-            # zero the parameter gradients
-            optimizer.zero_grad()
-
-            _, x_hat = AE(inputs)
-            loss = criterion(x_hat,inputs)
-            loss.backward()
-            optimizer.step()
-            # print statistics
-            running_loss += loss.item()
-            losses.append(loss)
-            k=1
-            if i % k == 0:    # print every 2000 mini-batches
-                print('[%d, %5d] loss: %.3f' %
-                    (epoch + 1, i + 1, running_loss / k))
-                running_loss = 0.0
-    np.save('losses.npy',np.array(losses))
-
-    torch.save({
-                'model_state_dict': AE.state_dict(),
-                'optimizer_state_dict': optimizer.state_dict(),
-                }, args.save_path)
-
 def train():
     # NOTE: Change the file paths here appropriately
     homedir = os.path.expanduser("~")
