@@ -104,7 +104,15 @@ def train():
 
     AE1 = AutoEncoder(args.orig_shape,args.latent_shape).to(device)
     AE2 = AutoEncoder(args.target_shape,args.latent_shape).to(device)
-    criterion = nn.MSELoss()
+    if args.recon_loss_type == 'MSE':
+        recon_criterion = nn.MSELoss()
+    elif args.recon_loss_type == 'L1':
+        recon_criterion = nn.L1Loss()
+    if args.latent_loss_type == 'L1':
+        latent_criterion = nn.L1Loss()
+    elif args.latent_loss_type == 'MSE':
+        latent_criterion = nn.MSELoss()
+        
     optimizer_1 = torch.optim.Adam(AE1.parameters(), lr=args.lr, weight_decay=1e-5)
     optimizer_2 = torch.optim.Adam(AE2.parameters(), lr=args.lr, weight_decay=1e-5)
 
@@ -113,19 +121,18 @@ def train():
         for batch in trainloader:
             orig_env_image = torch.autograd.Variable(batch['orig_env_image']).to(device)
             target_env_image = torch.autograd.Variable(batch['target_env_image']).to(device)
-            print(torch.max(orig_env_image))
             z1,s1 = AE1(orig_env_image)
             z2,s2 = AE2(target_env_image)
 
             if args.scale_loss:
-                reconstruction_loss1 = criterion(orig_env_image,s1)/(args.orig_shape**2)
-                reconstruction_loss2 = criterion(target_env_image,s2)/(args.target_shape**2)
-                latent_loss = criterion(z1,z2)*100
+                reconstruction_loss1 = recon_criterion(orig_env_image,s1)/(args.orig_shape**2)
+                reconstruction_loss2 = recon_criterion(target_env_image,s2)/(args.target_shape**2)
+                latent_loss = latent_criterion(z1,z2)*100
                 loss = reconstruction_loss1 + reconstruction_loss2 + latent_loss
             else:
-                reconstruction_loss1 = criterion(orig_env_image,s1)
-                reconstruction_loss2 = criterion(target_env_image,s2)
-                latent_loss = criterion(z1,z2)
+                reconstruction_loss1 = recon_criterion(orig_env_image,s1)
+                reconstruction_loss2 = recon_criterion(target_env_image,s2)
+                latent_loss = latent_criterion(z1,z2)
                 loss = reconstruction_loss1 + reconstruction_loss2 + latent_loss
 
             if args.tensorboard:
@@ -226,5 +233,7 @@ def test():
            
 
 if __name__ == "__main__":
-    # train()
-    test()
+    if args.train:
+        train()
+    else:
+        test()
