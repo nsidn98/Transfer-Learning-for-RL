@@ -42,9 +42,9 @@ parser.add_argument('--train', type=int, default=1,
 parser.add_argument('--scale_loss', type=int, default=0,
                     help='whether to normalise each component of the loss term')
 parser.add_argument('--latent_loss_type',type=str,default='L1',
-                    help='type of loss for Latent representation. Choices=[L1,MSE]')
+                    help='type of loss for Latent representation. Choices=[L1,MSE,SmoothL1]')
 parser.add_argument('--recon_loss_type',type=str,default='MSE',
-                    help='type of loss for reconstruction. Choices=[L1,MSE]')
+                    help='type of loss for reconstruction. Choices=[L1,MSE,SmoothL1]')
 parser.add_argument('--weight_paths',type=str2list,default='./Weights/autoencoder_1_shape.pt,./Weights/autoencoder_2_shape.pt')
 
 

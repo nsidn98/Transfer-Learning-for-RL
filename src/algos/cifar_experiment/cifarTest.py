@@ -77,6 +77,15 @@ class AutoEncoder(nn.Module):
         # use w_out = (w-k_size+2*padding)/stride + 1  
         return int(self.image_dim/4-3)
 
+def getCriterion(type):
+    if type == 'MSE':
+        criterion = nn.MSELoss()
+    elif type == 'L1':
+        criterion = nn.L1Loss()
+    elif type == 'SmoothL1':
+        criterion = nn.SmoothL1Loss()
+    return criterion
+
 def train():
     # NOTE: Change the file paths here appropriately
     if args.container:
@@ -107,15 +116,10 @@ def train():
 
     AE1 = AutoEncoder(args.orig_shape,args.latent_shape).to(device)
     AE2 = AutoEncoder(args.target_shape,args.latent_shape).to(device)
-    if args.recon_loss_type == 'MSE':
-        recon_criterion = nn.MSELoss()
-    elif args.recon_loss_type == 'L1':
-        recon_criterion = nn.L1Loss()
-    if args.latent_loss_type == 'L1':
-        latent_criterion = nn.L1Loss()
-    elif args.latent_loss_type == 'MSE':
-        latent_criterion = nn.MSELoss()
-        
+
+    recon_criterion = getCriterion(args.recon_loss_type)
+    latent_criterion = getCriterion(args.latent_loss_type)
+
     optimizer_1 = torch.optim.Adam(AE1.parameters(), lr=args.lr, weight_decay=1e-5)
     optimizer_2 = torch.optim.Adam(AE2.parameters(), lr=args.lr, weight_decay=1e-5)
 
