@@ -79,7 +79,10 @@ class AutoEncoder(nn.Module):
 
 def train():
     # NOTE: Change the file paths here appropriately
-    homedir = os.path.expanduser("~")
+    if args.container:
+        homedir = '/scratch/scratch1/sidnayak/'
+    else:
+        homedir = os.path.expanduser("~")
     data_root = homedir + "/data/VOCdevkit/VOC2007"
     list_file_path = os.path.join(data_root,"ImageSets","Main","train.txt")
     img_dir = os.path.join(data_root,"JPEGImages")
@@ -169,7 +172,10 @@ def tensor2img(img):
             
 def test():
      # NOTE: Change the file paths here appropriately
-    homedir = os.path.expanduser("~")
+    if args.container:
+        homedir = '/scratch/scratch1/sidnayak/'
+    else:
+        homedir = os.path.expanduser("~")
     data_root = homedir + "/data/VOCdevkit/VOC2007"
     list_file_path = os.path.join(data_root,"ImageSets","Main","train.txt")
     img_dir = os.path.join(data_root,"JPEGImages")
@@ -234,6 +240,8 @@ def test():
 
 if __name__ == "__main__":
     if args.train:
+        print('Training')
         train()
     else:
+        print('Testing')
         test()

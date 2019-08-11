@@ -18,6 +18,8 @@ parser.add_argument('--num_epochs', type=int, default=10,
                     help='number of epoochs to train the the autoencoder')
 parser.add_argument('--save_path', type=str,default='AE_weights.pt',
                     help='path to save the autoencoder weights')
+parser.add_argument('--container',type=int,default=0,
+                    help='if trainining in container(path for data folder is different)')
 
 # shape params
 parser.add_argument('--orig_shape', type=int, default=64,
