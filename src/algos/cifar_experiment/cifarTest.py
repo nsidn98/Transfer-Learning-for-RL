@@ -134,7 +134,7 @@ def train():
             if args.scale_loss:
                 reconstruction_loss1 = recon_criterion(orig_env_image,s1)/(args.orig_shape**2)
                 reconstruction_loss2 = recon_criterion(target_env_image,s2)/(args.target_shape**2)
-                latent_loss = latent_criterion(z1,z2)*100
+                latent_loss = latent_criterion(z1,z2)/args.latent_shape
                 loss = reconstruction_loss1 + reconstruction_loss2 + latent_loss
             else:
                 reconstruction_loss1 = recon_criterion(orig_env_image,s1)
@@ -233,10 +233,18 @@ def test():
         im=ax.imshow(s2_img)
         plt.title('reconstruct(32x32)')
         plt.tight_layout()
-        print(z1.detach().numpy())
-        print(z2.detach().numpy())
-        print(criterion(z1,z2))
+        print(list(z1.detach().numpy()))
+        print(list(z2.detach().numpy()))
+        # print(criterion(z1,z2))
         plt.show()
+        # plot z1 and z2
+        plt.plot(np.array(list(z1.detach().numpy()))[0],label='z1')
+        plt.plot(np.array(list(z2.detach().numpy()))[0],label='z2')
+        plt.grid()
+        plt.legend()
+        plt.show()
+        
+
         i+=1
         if i == 1:
             break
