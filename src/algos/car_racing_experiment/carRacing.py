@@ -371,11 +371,12 @@ class CarRacing(gym.Env, EzPickle):
         self.car.draw(self.viewer, mode!="state_pixels")
 
         arr = None
-        # win = self.viewer.window
-        # win.switch_to()
-        # win.dispatch_events()
+        # comment next three
+        win = self.viewer.window
+        win.switch_to()
+        win.dispatch_events()
 
-        # win.clear()
+        win.clear()
         t = self.transform
         if mode=='rgb_array':
             VP_W = VIDEO_W

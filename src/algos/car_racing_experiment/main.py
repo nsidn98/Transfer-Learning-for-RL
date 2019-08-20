@@ -1,7 +1,7 @@
 import argparse
 
 import numpy as np
-
+import os
 import gym
 import torch
 import torch.nn as nn
@@ -30,6 +30,9 @@ torch.manual_seed(args.seed)
 if use_cuda:
     torch.cuda.manual_seed(args.seed)
 
+if not os.path.exists('./Weights'):
+    os.makedirs('./Weights')
+print('Device:',device)
 transition = np.dtype([('s', np.float64, (args.img_stack, 96, 96)), ('a', np.float64, (3,)), ('a_logp', np.float64),
                        ('r', np.float64), ('s_', np.float64, (args.img_stack, 96, 96))])
 
@@ -177,7 +180,7 @@ class Agent():
         return action, a_logp
 
     def save_param(self):
-        torch.save(self.net.state_dict(), 'param/ppo_net_params.pkl')
+        torch.save(self.net.state_dict(), 'Weights/ppo_net_params.pkl')
 
     def store(self, transition):
         self.buffer[self.counter] = transition
@@ -235,6 +238,7 @@ if __name__ == "__main__":
     for i_ep in range(100000):
         score = 0
         state = env.reset()
+        print(i_ep)
         for t in range(1000):
             action, a_logp = agent.select_action(state)
             state_, reward, done, die = env.step(action * np.array([2., 1., 1.]) + np.array([-1., 0., 0.]))
