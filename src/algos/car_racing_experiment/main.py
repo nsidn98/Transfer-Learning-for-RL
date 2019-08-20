@@ -9,6 +9,8 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.distributions import Beta
 from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
+from tensorboardX import SummaryWriter
+import datetime
 
 from utils import DrawLine
 from carRacing import CarRacing
@@ -20,6 +22,7 @@ parser.add_argument('--img-stack', type=int, default=4, metavar='N', help='stack
 parser.add_argument('--seed', type=int, default=0, metavar='N', help='random seed (default: 0)')
 parser.add_argument('--render', type=int, help='render the environment')
 parser.add_argument('--vis', action='store_true', help='use visdom')
+parser.add_argument('--tensorboard', type=int, default=0, help='use tensorboard')
 parser.add_argument(
     '--log-interval', type=int, default=10, metavar='N', help='interval between training status logs (default: 10)')
 args = parser.parse_args()
@@ -30,9 +33,14 @@ torch.manual_seed(args.seed)
 if use_cuda:
     torch.cuda.manual_seed(args.seed)
 
+if args.tensorboard:
+    print('Init tensorboard')
+    writer = SummaryWriter(log_dir='runs/{}'.format(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")))
+
 if not os.path.exists('./Weights'):
     os.makedirs('./Weights')
 print('Device:',device)
+
 transition = np.dtype([('s', np.float64, (args.img_stack, 96, 96)), ('a', np.float64, (3,)), ('a_logp', np.float64),
                        ('r', np.float64), ('s_', np.float64, (args.img_stack, 96, 96))])
 
@@ -256,6 +264,8 @@ if __name__ == "__main__":
         if i_ep % args.log_interval == 0:
             if args.vis:
                 draw_reward(xdata=i_ep, ydata=running_score)
+            if args.tensorboard:
+                writer.add_scalar('Reward',running_score,i_ep)
             print('Ep {}\tLast score: {:.2f}\tMoving average score: {:.2f}'.format(i_ep, score, running_score))
             agent.save_param()
         if running_score > env.reward_threshold:
