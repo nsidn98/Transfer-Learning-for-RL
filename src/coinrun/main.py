@@ -79,6 +79,9 @@ class Model():
             if self.store((obs/256)):
                 print('Updating')
                 self.update()
+            if step % 10000 == 0 :
+                print('Saving Model')
+                self.save_param()
         self.env.close()
             
 
