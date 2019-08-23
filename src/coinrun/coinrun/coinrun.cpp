@@ -988,41 +988,42 @@ void load_enemy_themes(const char **ethemes, std::vector<int> &type_theme_idxs, 
 void images_load()
 {
   static const char *bgthemes[] = {
-      "kenney/Backgrounds/blue_desert.png",
-      "kenney/Backgrounds/blue_grass.png",
-      "kenney/Backgrounds/blue_land.png",
-      "kenney/Backgrounds/blue_shroom.png",
-      "kenney/Backgrounds/colored_desert.png",
-      "kenney/Backgrounds/colored_grass.png",
-      "kenney/Backgrounds/colored_land.png",
-      "backgrounds/game-backgrounds/seabed.png",
-      "backgrounds/game-backgrounds/G049_OT000_002A__background.png",
-      "backgrounds/game-backgrounds/Background.png",
-      "backgrounds/game-backgrounds/Background (4).png",
-      "backgrounds/game-backgrounds/BG_only.png",
-      "backgrounds/game-backgrounds/bg1.png",
-      "backgrounds/game-backgrounds/G154_OT000_002A__background.png",
-      "backgrounds/game-backgrounds/Background (5).png",
-      "backgrounds/game-backgrounds/Background (2).png",
-      "backgrounds/game-backgrounds/Background (3).png",
-      "backgrounds/background-from-glitch-assets/background.png",
-      "backgrounds/spacebackgrounds-0/deep_space_01.png",
-      "backgrounds/spacebackgrounds-0/spacegen_01.png",
-      "backgrounds/spacebackgrounds-0/milky_way_01.png",
-      "backgrounds/spacebackgrounds-0/ez_space_lite_01.png",
-      "backgrounds/spacebackgrounds-0/meyespace_v1_01.png",
+      // "kenney/Backgrounds/blue_desert.png",
+      // "kenney/Backgrounds/blue_grass.png",
+      // "kenney/Backgrounds/blue_land.png",
+      // "kenney/Backgrounds/blue_shroom.png",
+      // "kenney/Backgrounds/colored_desert.png",
+      // "kenney/Backgrounds/colored_grass.png",
+      // "kenney/Backgrounds/colored_land.png",
+      // "backgrounds/game-backgrounds/seabed.png",
+      // "backgrounds/game-backgrounds/G049_OT000_002A__background.png",
+      // "backgrounds/game-backgrounds/Background.png",
+      // "backgrounds/game-backgrounds/Background (4).png",
+      // "backgrounds/game-backgrounds/BG_only.png",
+      // "backgrounds/game-backgrounds/bg1.png",
+      // "backgrounds/game-backgrounds/G154_OT000_002A__background.png",
+      // "backgrounds/game-backgrounds/Background (5).png",
+      // "backgrounds/game-backgrounds/Background (2).png",
+      // "backgrounds/game-backgrounds/Background (3).png",
+      // "backgrounds/background-from-glitch-assets/background.png",
+      // "backgrounds/spacebackgrounds-0/deep_space_01.png",
+      // "backgrounds/spacebackgrounds-0/spacegen_01.png",
+      // "backgrounds/spacebackgrounds-0/milky_way_01.png",
+      // "backgrounds/spacebackgrounds-0/ez_space_lite_01.png",
+      // "backgrounds/spacebackgrounds-0/meyespace_v1_01.png",
       "backgrounds/spacebackgrounds-0/eye_nebula_01.png",
-      "backgrounds/spacebackgrounds-0/deep_sky_01.png",
-      "backgrounds/spacebackgrounds-0/space_nebula_01.png",
-      "backgrounds/space-backgrounds-3/Background-1.png",
-      "backgrounds/space-backgrounds-3/Background-2.png",
-      "backgrounds/space-backgrounds-3/Background-3.png",
-      "backgrounds/space-backgrounds-3/Background-4.png",
-      "backgrounds/background-2/airadventurelevel1.png",
-      "backgrounds/background-2/airadventurelevel2.png",
-      "backgrounds/background-2/airadventurelevel3.png",
-      "backgrounds/background-2/airadventurelevel4.png",
-      0};
+      // "backgrounds/spacebackgrounds-0/deep_sky_01.png",
+      // "backgrounds/spacebackgrounds-0/space_nebula_01.png",
+      // "backgrounds/space-backgrounds-3/Background-1.png",
+      // "backgrounds/space-backgrounds-3/Background-2.png",
+      // "backgrounds/space-backgrounds-3/Background-3.png",
+      // "backgrounds/space-backgrounds-3/Background-4.png",
+      // "backgrounds/background-2/airadventurelevel1.png",
+      // "backgrounds/background-2/airadventurelevel2.png",
+      // "backgrounds/background-2/airadventurelevel3.png",
+      // "backgrounds/background-2/airadventurelevel4.png",
+      // 0
+      };
   for (const char **theme=bgthemes; *theme; ++theme) {
     QString path = QString::fromUtf8(*theme);
     bg_images.push_back(load_resource(path));
@@ -1040,7 +1041,9 @@ void images_load()
   for (const char **theme=gthemes; *theme; ++theme) {
     GroundTheme t;
     GroundTheme td;
-    t.theme_name = QString::fromUtf8(*theme);
+    // t.theme_name = QString::fromUtf8(*theme);
+    // Setting wall colors to Snow
+    t.theme_name = "Snow";
     QString walls = "kenney/Ground/" + t.theme_name + "/" + t.theme_name.toLower();
     t.default_wall = load_resource(walls + "Center.png"); // "Ground/Dirt/dirt.png"
     t.walls['a'] = load_resource(walls + "Cliff_left.png");
@@ -1075,7 +1078,9 @@ void images_load()
   for (const char **theme=pthemes; *theme; ++theme) {
     PlayerTheme t1;
     PlayerTheme t1d;
-    t1.theme_name = QString::fromUtf8(*theme);
+    // t1.theme_name = QString::fromUtf8(*theme);
+    // Fixing player to Pink color
+    t1.theme_name = "Pink";
     QString dir = "kenney/Players/128x256/" + t1.theme_name + "/alien" + t1.theme_name;
     t1.stand = load_resource(dir + "_stand.png");
     t1.front = load_resource(dir + "_front.png");
