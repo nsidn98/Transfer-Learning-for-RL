@@ -31,7 +31,8 @@ if args.tensorboard:
 
 class Model():
     def __init__(self):
-        self.AE = AutoEncoder(latent_dim=args.latent_dim).double().to(device)
+        self.AE = AutoEncoder(args,latent_dim=args.latent_dim).double().to(device)
+        self.AE.train()
         self.counter = 0
         self.buffer = np.empty(args.buffer_capacity, dtype=transition)
         setup_utils.setup_and_load(use_cmd_line_args=False)
@@ -42,7 +43,7 @@ class Model():
 
     def store(self,x):
         self.buffer['s'][self.counter] = x
-        self.counter += 1 
+        self.counter += 1
         if self.counter == args.buffer_capacity:
             self.counter = 0
             return True
@@ -57,16 +58,25 @@ class Model():
     def load_param(self):
         self.AE.load_state_dict(torch.load('./Weights'+args.weight_path))
 
+    def make_img(self,img):
+        img = img.numpy()
+        img = np.transpose(img,(1,2,0))
+        return img
+
     def update(self):
         s = torch.tensor(self.buffer['s'],dtype=torch.double).to(device)
         for _ in range(args.train_epochs):
+            print('New EPoch \n')
             for index in BatchSampler(SubsetRandomSampler(range(args.buffer_capacity)),args.batch_size, False):
                 s_in = s[index]
                 z,s_hat = self.AE(s_in)
                 loss = self.criterion(s_hat,s_in)
+                print("Loss:\t",loss.item())
                 if args.tensorboard:
                     writer.add_scalar('Loss',loss.item(),self.step)
                 self.optimizer.zero_grad()
+                loss.backward()
+                self.optimizer.step()
                 self.step+=1
                 
     def run(self):
@@ -74,12 +84,12 @@ class Model():
             act = np.array([self.env.action_space.sample() for _ in range(args.num_envs)])
             # act = self.env.action_space.sample()
             # print(np.int32(act),type(np.int32(act)))
-            obs,_,_,_ = self.env.step(act)
+            obs,_,done,_ = self.env.step(act)
             obs = np.transpose(np.squeeze(obs),(2,0,1))
-            if self.store((obs/256)):
+            if self.store((obs/255)):
                 print('Updating')
                 self.update()
-            if step % 10000 == 0 :
+            if step % 1000 == 0 :
                 print('Saving Model')
                 self.save_param()
         self.env.close()

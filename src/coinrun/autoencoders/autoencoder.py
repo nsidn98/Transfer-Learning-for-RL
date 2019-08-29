@@ -12,13 +12,12 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 
 class AutoEncoder(nn.Module):
-    def __init__(self,image_dim=64,latent_dim=100,noise_scale=0):
+    def __init__(self,args,image_dim=64,latent_dim=100):
         super(AutoEncoder, self).__init__()
-
+        self.args = args
         self.image_dim = image_dim # a 28x28 image corresponds to 4 on the FC layer, a 64x64 image corresponds to 13
         self.latent_dim = latent_dim
-        self.noise_scale = noise_scale
-        self.latentLayerShape = self.getShape()
+        self.latentLayerShape = self.getShape() # shape after all convs
         # self.batch_size = 50
         # shape before linear(latent)
         # wxw --> (w-3)x(w-3) --> (w-6)x(w-6) --> (w/2-4)x(w/2-4) --> (w/4-3)x(w/4-3)
@@ -33,7 +32,8 @@ class AutoEncoder(nn.Module):
             nn.Conv2d(32, 32, kernel_size=4, stride=2),
             nn.ReLU(),
             nn.Conv2d(32, 32, kernel_size=4, stride=2),
-            nn.ReLU())
+            nn.ReLU()
+            )
         self.fc1 = nn.Linear(32*self.latentLayerShape*self.latentLayerShape, self.latent_dim)
         self.fc2 = nn.Linear(self.latent_dim, 32*self.latentLayerShape*self.latentLayerShape)
         self.decoder = nn.Sequential(
@@ -44,7 +44,11 @@ class AutoEncoder(nn.Module):
             nn.ConvTranspose2d(32, 32, kernel_size=4, stride=1),
             nn.ReLU(),
             nn.ConvTranspose2d(32, 3, kernel_size=4, stride=1),
-	    nn.Sigmoid())
+	        )
+        if self.args.xavier:
+            print('Initialising Xavier Weights\n')
+            self.apply(self.weights_init_)
+        print("Latent Layer shape after conv(NOT latent representation dimension):",self.latentLayerShape)
 
     def forward(self, x):
         # uncomment to add noise to the original image
@@ -58,6 +62,8 @@ class AutoEncoder(nn.Module):
         x_hat = self.fc2(z)
         x_hat = x_hat.view(-1, 32, self.latentLayerShape, self.latentLayerShape)
         x_hat = self.decoder(x_hat)
+        x_hat = torch.sigmoid(x_hat)
+        # x_hat = F.tanh(x_hat)
 
         return z, x_hat
 
@@ -68,9 +74,23 @@ class AutoEncoder(nn.Module):
         return z
 
     def getShape(self):
+        # w --> w-3 --> w-6 --> w/2-4 --> w/4-3
         # gives the shape of the linear(latent) layer  
         # use w_out = (w-k_size+2*padding)/stride + 1  
-        return int(self.image_dim/4-3)
+        return int(self.image_dim/4-3) # if four conv layers
+        # return int(self.image_dim/2-4) # if three conv layers
+
+    def weights_init_(self,m):
+        if isinstance(m, nn.Linear):
+            # print('Linear Xavier')
+            nn.init.xavier_uniform_(m.weight, gain=1)
+            nn.init.constant_(m.bias, 0)
+        if isinstance(m,nn.Conv2d):
+            # print('Conv Xavier')
+            nn.init.xavier_uniform_(m.weight)
+        if isinstance(m, nn.ConvTranspose2d):
+            # print('Convtranspose Xavier')
+            nn.init.xavier_uniform_(m.weight)
 
 
 
