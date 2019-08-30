@@ -56,7 +56,7 @@ class Model():
         torch.save(self.AE.state_dict(),'./Weights/' + args.weight_path)
     
     def load_param(self):
-        self.AE.load_state_dict(torch.load('./Weights'+args.weight_path))
+        self.AE.load_state_dict(torch.load('./Weights/'+args.weight_path))
 
     def make_img(self,img):
         img = img.numpy()
@@ -95,10 +95,39 @@ class Model():
         self.env.close()
             
 
-def main():
+def trainAE():
+    '''
+    Train single autoencoder
+    '''
     model = Model()
     model.run()
 
+def test():
+    model = Model()
+    model.load_param()
+    # model.AE.test()
+
+    for step in range(5):
+        act = np.array([model.env.action_space.sample() for _ in range(args.num_envs)])
+        obs,_,done,_ = model.env.step(act)
+        obs = np.squeeze(obs)
+        obs = np.transpose(obs,(2,0,1))
+        obs = torch.DoubleTensor(obs/255)
+        z,obs_hat = model.AE(torch.unsqueeze(obs,0))
+        obs = model.make_img(torch.squeeze(obs).detach())
+        obs_hat = model.make_img(torch.squeeze(obs_hat).detach())
+        print(np.max(obs),np.max(obs_hat))
+        fig = plt.figure()
+        ax1 = fig.add_subplot(2,1,1)
+        ax1.imshow(obs)
+        ax2 = fig.add_subplot(2,1,2)
+        ax2.imshow(obs_hat)
+        plt.show()
+
+        
+    model.env.close()
+    
 
 if __name__ == '__main__':
-    main()
+    # trainAE()
+    test()
