@@ -2,14 +2,18 @@
 DQN in PyTorch
 """
 import os
+import cv2
 import torch
 import torch.nn as nn
 import numpy as np
+import datetime
 import random
 from collections import namedtuple
 from collections import deque
 from typing import List, Tuple
 import matplotlib.pyplot as plt
+from tensorboardX import SummaryWriter
+
 
 import gym
 from gym import spaces
@@ -29,11 +33,16 @@ device   = torch.device("cuda" if use_cuda else "cpu")
 # seed
 np_r, seed = seeding.np_random(None)
 
+if args.tensorboard:
+    print('Init tensorboardX')
+    writer = SummaryWriter(log_dir='runs/{}'.format(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")))
+
 def preprocessImg(img):
     '''
     Convert to [1,c,h,w] from [h,w,c]
     '''
     # img = img.astype(np.float64)
+    img = cv2.resize(img,(300,200))
     img = np.transpose(img, (2,0,1))
     img = np.expand_dims(img,0)
     return img
@@ -233,6 +242,7 @@ class Agent(object):
         Returns:
             float: loss value
         """
+        print("Training RL agent")
         self.dqn.train(mode=True)
         self.optim.zero_grad()
         loss = self.loss_fn(Q_pred, Q_true)
@@ -252,33 +262,44 @@ class Darling(object):
         self.losses = []
         self.tensorboard = tensorboard
         self.loss = 0
+        self.epoch = 0
 
     def train(self,minibatch: List[Transition]):
+        print('Training Autoencoder')
         orig_states = np.vstack([x.orig_state for x in minibatch])
         new_states  = np.vstack([x.new_state for x in minibatch])
 
-        
         orig_states = torch.FloatTensor(orig_states)
         new_states = torch.FloatTensor(new_states)
-        
         s1,z1 = self.autoencoder1(orig_states)
         s2,z2 = self.autoencoder2(new_states)
-        
         reconstruction_loss1 = self.criterion(orig_states,s1)
         reconstruction_loss2 = self.criterion(new_states,s2)
         latent_loss = self.criterion(z1,z2)
 
         loss = latent_loss + reconstruction_loss1 + reconstruction_loss2
+        if args.tensorboard:
+            writer.add_scalar('Autoencoder_1_Loss',reconstruction_loss1.item(),self.epoch)
+            writer.add_scalar('Autoencoder_2_Loss',reconstruction_loss2.item(),self.epoch)
+            writer.add_scalar('Latent_Loss',latent_loss.item(),self.epoch)
+            writer.add_scalar('Total_Loss',loss.item(),self.epoch)
+
+        print('Recon Loss 1:{:5} \t Recon Loss 2:{:5}\t Latent Loss:{:5}'.format(reconstruction_loss1.item(),reconstruction_loss2.item(),latent_loss.item()))
         self.losses.append(loss.detach().numpy())
         self.loss = np.copy(loss.detach().numpy())
 
+        # print('Backward 1')
         self.optimizer1.zero_grad()
         loss.backward(retain_graph=True)
         self.optimizer1.step()
 
+        # print('Backward 2')
         self.optimizer2.zero_grad()
         loss.backward()
         self.optimizer2.step()
+
+        self.epoch += 1
+        # print('Done Traininf')
     
     def save(self,args):
         if not os.path.exists('./Weights'):
@@ -368,7 +389,6 @@ def play_episode(orig_env: MountainCarEnv,
         state_memory.push(orig_img,new_img)
 
         if len(replay_memory) > batch_size:
-
             minibatch = replay_memory.pop(batch_size)
             train_helper(agent, minibatch, args.gamma)
 
