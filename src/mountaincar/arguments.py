@@ -71,9 +71,14 @@ parser.add_argument('--flip',type=int,default=0,
 
 # loss function
 # total_loss = alpha_latent*latent_loss + alpha_recon1*recon1_loss + alpha_recon2*recon2_loss
-parser.add_argument('--alpha_latent',type=float,default=1)
+parser.add_argument('--alpha_latent',type=float,default=100)
 parser.add_argument('--alpha_recon1',type=float,default=1)
 parser.add_argument('--alpha_recon2',type=float,default=1)
+# loss function for AEs:
+# 'total': recon1 + recon2 + latent
+# 'seperate': loss1 = recon1 + latent; loss2 = recon2 + latent
+parser.add_argument('--loss_type',type=str,default='total') 
+
 
 parser.add_argument('--test',type=int,default=0)
 parser.add_argument('--state_type',type=str,default='original')

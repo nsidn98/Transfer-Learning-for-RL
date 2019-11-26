@@ -45,6 +45,7 @@ def preprocessImg(img):
     img = cv2.resize(img,(300,200))
     img = np.transpose(img, (2,0,1))
     img = np.expand_dims(img,0)
+    img = img/255
     return img
 
 class DQN(nn.Module):
@@ -242,7 +243,7 @@ class Agent(object):
         Returns:
             float: loss value
         """
-        print("Training RL agent")
+        # print("Training RL agent")
         self.dqn.train(mode=True)
         self.optim.zero_grad()
         loss = self.loss_fn(Q_pred, Q_true)
@@ -261,11 +262,11 @@ class Darling(object):
         self.optimizer2 = torch.optim.Adam(self.autoencoder2.parameters(), lr=1e-3, weight_decay=1e-5)
         self.losses = []
         self.tensorboard = tensorboard
-        self.loss = 0
+        # self.loss = 0
         self.epoch = 0
 
     def train(self,minibatch: List[Transition]):
-        print('Training Autoencoder')
+        # print('Training Autoencoder')
         orig_states = np.vstack([x.orig_state for x in minibatch])
         new_states  = np.vstack([x.new_state for x in minibatch])
 
@@ -277,31 +278,55 @@ class Darling(object):
         reconstruction_loss2 = self.criterion(new_states,s2)
         latent_loss = self.criterion(z1,z2)
 
-        loss = latent_loss + reconstruction_loss1 + reconstruction_loss2
-        if args.tensorboard:
-            writer.add_scalar('Autoencoder_1_Loss',reconstruction_loss1.item(),self.epoch)
-            writer.add_scalar('Autoencoder_2_Loss',reconstruction_loss2.item(),self.epoch)
-            writer.add_scalar('Latent_Loss',latent_loss.item(),self.epoch)
-            writer.add_scalar('Total_Loss',loss.item(),self.epoch)
+        if args.loss_type == 'total':
+            loss = args.alpha_latent*latent_loss + args.alpha_recon1*reconstruction_loss1 + args.alpha_recon2*reconstruction_loss2
+        elif args.loss_type == 'seperate':
+            loss1 = args.alpha_latent*latent_loss + args.alpha_recon1*reconstruction_loss1
+            loss2 = args.alpha_latent*latent_loss + args.alpha_recon2*reconstruction_loss2
 
-        print('Recon Loss 1:{:5} \t Recon Loss 2:{:5}\t Latent Loss:{:5}'.format(reconstruction_loss1.item(),reconstruction_loss2.item(),latent_loss.item()))
-        self.losses.append(loss.detach().numpy())
-        self.loss = np.copy(loss.detach().numpy())
+        if args.tensorboard:
+            writer.add_scalar('Autoencoder_1_Loss',args.alpha_recon1*reconstruction_loss1.item(),self.epoch)
+            writer.add_scalar('Autoencoder_2_Loss',args.alpha_recon2*reconstruction_loss2.item(),self.epoch)
+            writer.add_scalar('Latent_Loss',args.alpha_latent*latent_loss.item(),self.epoch)
+            if args.loss_type == 'total':
+                writer.add_scalar('Total_Loss',loss.item(),self.epoch)
+            elif args.loss_type == 'seperate':
+                writer.add_scalar('Loss1',loss1.item(),self.epoch)
+                writer.add_scalar('Loss2',loss2.item(),self.epoch)
+
+        print('Recon Loss 1:{:5} \t Recon Loss 2:{:5}\t Latent Loss:{:5}'.format(\
+            args.alpha_recon1*reconstruction_loss1.item(),\
+            args.alpha_recon2*reconstruction_loss2.item(),\
+            args.alpha_latent*latent_loss.item()))
+        # self.losses.append(loss.detach().numpy())
+        # self.loss = np.copy(loss.detach().numpy())
 
         # print('Backward 1')
-        self.optimizer1.zero_grad()
-        loss.backward(retain_graph=True)
-        self.optimizer1.step()
+        if args.loss_type == 'total':
+            self.optimizer1.zero_grad()
+            loss.backward(retain_graph=True)
+            self.optimizer1.step()
 
-        # print('Backward 2')
-        self.optimizer2.zero_grad()
-        loss.backward()
-        self.optimizer2.step()
+            # print('Backward 2')
+            self.optimizer2.zero_grad()
+            loss.backward()
+            self.optimizer2.step()
+        
+        elif args.loss_type == 'seperate':
+            self.optimizer1.zero_grad()
+            loss1.backward(retain_graph=True)
+            self.optimizer1.step()
+
+            self.optimizer2.zero_grad()
+            loss2.backward()
+            self.optimizer2.step()
+            
 
         self.epoch += 1
         # print('Done Traininf')
     
     def save(self,args):
+        print('Saving Weights')
         if not os.path.exists('./Weights'):
             os.makedirs('./Weights')
         torch.save({
@@ -388,12 +413,16 @@ def play_episode(orig_env: MountainCarEnv,
         # push frames for both envs in buffer
         state_memory.push(orig_img,new_img)
 
-        if len(replay_memory) > batch_size:
+        if len(replay_memory)%batch_size == 0:
             minibatch = replay_memory.pop(batch_size)
             train_helper(agent, minibatch, args.gamma)
 
-            minibatch_autoencoder = state_memory.pop(batch_size)
-            autoencoder_agent.train(minibatch_autoencoder)
+        if len(replay_memory)%1000 ==0:
+            for i in range(int(1000/batch_size)):
+                print('Update: ',i)
+                minibatch_autoencoder = state_memory.pop(batch_size)
+                autoencoder_agent.train(minibatch_autoencoder)
+            autoencoder_agent.save(args)
 
         s = s2
 
@@ -456,12 +485,14 @@ def main():
             print("[Episode: {:5}] Reward: {:5} 𝜺-greedy: {:5.2f} Autoencoder Loss: {:5}".format(i + 1, r, eps,autoencoder_loss))
 
             rewards.append(r)
+            writer.add_scalar('Agent Reward',r ,i)
 
             if len(rewards) == rewards.maxlen:
 
                 if np.mean(rewards) >= 200:
                     print("Game cleared in {} games with {}".format(i + 1, np.mean(rewards)))
                     break
+            
         autoencoder_agent.save(args)
         # plt.plot(autoencoder_agent.losses)
         # plt.grid()
